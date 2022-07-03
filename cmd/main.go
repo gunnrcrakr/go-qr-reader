@@ -29,15 +29,12 @@ func main() {
 	e.Logger.SetLevel(logs.INFO)
 	e.POST("/decode", process)
 
-	// Start server
 	go func() {
 		if err := e.Start(":" + os.Getenv("PORT")); err != nil && err != http.ErrServerClosed {
 			e.Logger.Fatal("shutting down the server")
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server with a timeout of 10 seconds.
-	// Use a buffered channel to avoid missing signals as recommended for signal.Notify
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	<-quit
@@ -69,7 +66,7 @@ func process(c echo.Context) error {
 }
 
 func download(URL string) error {
-	// Get img from url
+
 	response, err := http.Get(URL)
 	if err != nil {
 		return err
@@ -80,14 +77,12 @@ func download(URL string) error {
 		return fmt.Errorf("status code error: %d %s", response.StatusCode, response.Status)
 	}
 
-	// Create empty file
 	file, err := os.Create(FILE_PATH)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	// Write body to file
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
 		return err
@@ -97,17 +92,15 @@ func download(URL string) error {
 }
 
 func decode() (*gozxing.Result, error) {
-	// open and decode image file
+
 	file, _ := os.Open(FILE_PATH)
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
 	}
 
-	// prepare BinaryBitmap
 	bmp, _ := gozxing.NewBinaryBitmapFromImage(img)
 
-	// decode image
 	qrReader := qrcode.NewQRCodeReader()
 	result, _ := qrReader.Decode(bmp, nil)
 
