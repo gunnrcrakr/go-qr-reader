@@ -1,1 +1,1 @@
-web: bin/go-qr-reader
+web: bin/cmd
