@@ -93,8 +93,6 @@ func download(URL string) error {
 		return err
 	}
 
-	// log.Println("Downloaded file to", FILE_PATH)
-
 	return nil
 }
 
