@@ -12,13 +12,14 @@ import (
 	"os/signal"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	logs "github.com/labstack/gommon/log"
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
-var FILE_PATH string = "./downloads/qrcode.png"
+var FILE_PATH string = "./downloads/"
 
 type Img struct {
 	ImgURL string `json:"img_url"`
@@ -53,12 +54,12 @@ func process(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"err": err.Error()})
 	}
 
-	err := download(img.ImgURL)
+	full_path, err := download(img.ImgURL)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"err": err.Error()})
 	}
 
-	qr_string, err := decode()
+	qr_string, err := decode(full_path)
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]interface{}{"err": err.Error()})
 	}
@@ -66,44 +67,57 @@ func process(c echo.Context) error {
 	return c.JSON(http.StatusOK, map[string]string{"qr_string": qr_string.GetText()})
 }
 
-func download(URL string) error {
+func download(URL string) (string, error) {
 
 	response, err := http.Get(URL)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer response.Body.Close()
 
 	if response.StatusCode != 200 {
-		return fmt.Errorf("status code error: %d %s", response.StatusCode, response.Status)
+		return "", fmt.Errorf("status code error: %d %s", response.StatusCode, response.Status)
 	}
 
-	file, err := os.Create(FILE_PATH)
+	file_name := uuid.New().String() + ".jpg"
+	full_path := FILE_PATH + file_name
+	file, err := os.Create(full_path)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, response.Body)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return full_path, nil
 }
 
-func decode() (*gozxing.Result, error) {
+func decode(full_path string) (*gozxing.Result, error) {
 
-	file, _ := os.Open(FILE_PATH)
+	file, err := os.Open(full_path)
+	if err != nil {
+		return nil, err
+	}
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
 	}
 
-	bmp, _ := gozxing.NewBinaryBitmapFromImage(img)
+	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
+	if err != nil {
+		return nil, err
+	}
 
 	qrReader := qrcode.NewQRCodeReader()
-	result, _ := qrReader.Decode(bmp, nil)
+	result, err := qrReader.Decode(bmp, map[gozxing.DecodeHintType]interface{}{
+		gozxing.DecodeHintType_TRY_HARDER: true,
+	})
+	if err != nil {
+		return nil, err
+	}
 
 	return result, nil
 }
